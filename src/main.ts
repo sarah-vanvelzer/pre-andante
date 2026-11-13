@@ -31,6 +31,15 @@ async function main() {
   const draw = new DrawingUtils(ctx);
   let lastVideoTime = -1;
 
+  let steps = 0;
+  let kneeUp = false;
+  const HIGH = 0.08; // above this => knee lifted
+  const LOW = 0.03; // below this => feet back level
+  let lastStepTime = 0;
+  let levelSince = 0;
+  const LEVEL_HOLD_MS = 150;
+  const MIN_STEP_MS = 250;
+
   // Runs every animation frame
   function loop() {
     if (video.currentTime !== lastVideoTime) {
@@ -48,7 +57,21 @@ async function main() {
           status.textContent = `Ankles not visible (${ankleVis.toFixed(2)})`;
         } else {
           const sep = lm[27].x - lm[28].x;
-          status.textContent = `Ankle separation: ${sep.toFixed(3)}`;
+          // 25 = left knee, 26 = right knee
+          const kneeDiff = lm[25].y - lm[26].y;
+          const lift = Math.abs(kneeDiff);
+          const now = performance.now();
+          if (lift > HIGH && !kneeUp && now - lastStepTime > MIN_STEP_MS) {
+            steps++;
+            kneeUp = true;
+          }
+          if (lift < LOW) {
+            if (levelSince === 0) levelSince = now;
+            if (now - levelSince > LEVEL_HOLD_MS) kneeUp = false;
+          } else {
+            levelSince = 0;
+          }
+          status.textContent = `Steps: ${steps} | Ankle sep: ${sep.toFixed(3)} | Knee diff: ${kneeDiff.toFixed(3)}`;
         }
       } else {
         status.textContent = "No person detected";
